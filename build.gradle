@@ -1,0 +1,31 @@
+repositories {
+    google()
+    jcenter()
+    mavenCentral()
+}
+
+apply plugin: "java"
+apply plugin: "groovy"
+apply plugin: "eclipse"
+apply plugin: "idea"
+
+group = "com.thitu.spock"
+version = "1.0.0-alpha"
+
+targetCompatibility = JavaVersion.VERSION_1_7
+sourceCompatibility = JavaVersion.VERSION_1_7
+
+dependencies {
+    compile gradleApi()
+
+    compile "org.spockframework:spock-core:1.1-groovy-2.4"
+    compile "org.codehaus.groovy:groovy-all:2.4.12"
+    compile "com.google.guava:guava:24.1-jre"
+}
+
+configurations.all {
+    resolutionStrategy {
+        failOnVersionConflict()
+        force "org.codehaus.groovy:groovy-all:2.4.12"
+    }
+}
