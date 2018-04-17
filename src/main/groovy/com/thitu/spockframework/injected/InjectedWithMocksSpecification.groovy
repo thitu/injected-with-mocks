@@ -20,7 +20,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  **/
-package com.thitu.spock.injected
+package com.thitu.spockframework.injected
 
 import com.google.common.annotations.Beta
 import groovy.util.logging.Slf4j
