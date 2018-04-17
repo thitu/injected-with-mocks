@@ -47,8 +47,8 @@ class InjectedWithMocksSpecification extends Specification {
 
             if (injected && !notShared) {
                 throw new InjectedWithMocksException("@${InjectedWithMocks} cannot be used alongside @${Shared}")
-            } else if (depth < 1 || depth > 4) {
-                throw new InjectedWithMocksException("Are we sure about the configured depth of ${depth}? Expected range is 1...4")
+            } else if (depth < 1 || depth > 5) {
+                throw new InjectedWithMocksException("Are we sure about the configured depth of ${depth}? Expected range is 1...5")
             }
 
             if (injected && notShared) {
@@ -57,7 +57,12 @@ class InjectedWithMocksSpecification extends Specification {
                 def fields = [] as Set<Field>
                 fields.addAll field.type.declaredFields
 
-                if (depth == 4) {
+                if (depth == 5) {
+                    fields.addAll extractFields(field.type?.superclass?.superclass?.superclass?.superclass)
+                    fields.addAll extractFields(field.type?.superclass?.superclass?.superclass)
+                    fields.addAll extractFields(field.type?.superclass?.superclass)
+                    fields.addAll extractFields(field.type?.superclass)
+                } else if (depth == 4) {
                     fields.addAll extractFields(field.type?.superclass?.superclass?.superclass)
                     fields.addAll extractFields(field.type?.superclass?.superclass)
                     fields.addAll extractFields(field.type?.superclass)
