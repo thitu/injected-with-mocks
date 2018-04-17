@@ -36,33 +36,32 @@ class InjectedWithMocksExtension extends AbstractAnnotationDrivenExtension<Injec
 
     @Override
     void visitFieldAnnotation(InjectedWithMocks annotation, FieldInfo fieldInfo) {
-        logger.trace("@visitFieldAnnotation(InjectedWithMocks, FieldInfo)")
+        logger.trace "@visitFieldAnnotation(InjectedWithMocks, FieldInfo)"
     }
 
     @Override
     void visitSpec(SpecInfo specInfo) {
-        logger.trace("@visitSpec(SpecInfo)")
+        logger.trace "@visitSpec(SpecInfo)"
 
         specInfo.features.each { feature ->
-            feature.featureMethod.addInterceptor(new InjectionInterceptor())
+            feature.featureMethod.addInterceptor new InjectionInterceptor()
         }
     }
-
 
     @Slf4j(value = "logger")
     private static class InjectionInterceptor implements IMethodInterceptor {
 
         @Override
         void intercept(IMethodInvocation invocation) throws Throwable {
-            logger.trace("@intercept(IMethodInvocation)")
+            logger.trace "@intercept(IMethodInvocation)"
 
             def method = invocation.spec.reflection.getMethod("inject", null)
             method.accessible = true
-            method.invoke(invocation.instance, null)
+            method.invoke invocation.instance, null
 
             invocation.proceed()
 
-            logger.trace("intercept completed!")
+            logger.trace "intercept completed!"
         }
     }
 }

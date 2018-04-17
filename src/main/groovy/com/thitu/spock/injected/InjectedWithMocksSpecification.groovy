@@ -37,13 +37,13 @@ import static java.lang.reflect.Modifier.isStatic
 class InjectedWithMocksSpecification extends Specification {
 
     def inject() {
-        for (def field : this.class.declaredFields) {
-            def injected = field.declaredAnnotations.any { it instanceof InjectedWithMocks }
-            def notShared = field.declaredAnnotations.every { !(it instanceof Shared) }
+        this.class.declaredFields.each { declaredField ->
+            def annotations = declaredField.declaredAnnotations
 
-            int depth = field.declaredAnnotations.find {
-                it instanceof InjectedWithMocks
-            }?.depth() ?: 2
+            def injected = annotations.any { it instanceof InjectedWithMocks }
+            def notShared = annotations.every { !(it instanceof Shared) }
+
+            int depth = annotations.find { it instanceof InjectedWithMocks }?.depth() ?: 2
 
             if (injected && !notShared) {
                 throw new InjectedWithMocksException("@${InjectedWithMocks} cannot be used alongside @${Shared}")
@@ -52,48 +52,43 @@ class InjectedWithMocksSpecification extends Specification {
             }
 
             if (injected && notShared) {
-                field.accessible = true
+                declaredField.accessible = true
 
                 def fields = [] as Set<Field>
-                fields.addAll field.type.declaredFields
+                fields.addAll declaredField.type.declaredFields
 
                 if (depth == 5) {
-                    fields.addAll extractFields(field.type?.superclass?.superclass?.superclass?.superclass)
-                    fields.addAll extractFields(field.type?.superclass?.superclass?.superclass)
-                    fields.addAll extractFields(field.type?.superclass?.superclass)
-                    fields.addAll extractFields(field.type?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass?.superclass?.superclass?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass?.superclass?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass)
                 } else if (depth == 4) {
-                    fields.addAll extractFields(field.type?.superclass?.superclass?.superclass)
-                    fields.addAll extractFields(field.type?.superclass?.superclass)
-                    fields.addAll extractFields(field.type?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass?.superclass?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass)
                 } else if (depth == 3) {
-                    fields.addAll extractFields(field.type?.superclass?.superclass)
-                    fields.addAll extractFields(field.type?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass)
                 } else if (depth == 2) {
-                    fields.addAll extractFields(field.type?.superclass)
+                    fields.addAll extractFields(declaredField.type?.superclass)
                 }
 
-                for (def f : fields) {
-                    if (f.type.primitive) {
-                        continue
+                fields.each { field ->
+                    if (!field.type.primitive) {
+                        int modifiers = field.modifiers
+
+                        if (isFinal(modifiers) || isStatic(modifiers)) {
+                            logger.debug "Not Mocking static or final field: {} -> {}", field.name, field.type
+                        } else {
+                            field.accessible = true
+
+                            if (field.type == String) {
+                                field.set declaredField.get(this), field.name
+                            } else if (!isFinal(field.type.modifiers)) {
+                                field.set declaredField.get(this), Mock(field.type)
+                            }
+                        }
                     }
-
-                    int modifiers = f.modifiers
-
-                    if (isFinal(modifiers) || isStatic(modifiers)) {
-                        logger.debug("Not Mocking static or final field: {} -> {}", f.name, f.type)
-                        continue
-                    }
-
-                    f.accessible = true
-
-                    if (f.type == String) {
-                        f.set(field.get(this), f.name)
-                    } else if (!isFinal(f.type.modifiers)) {
-                        f.set(field.get(this), Mock(f.type))
-                    }
-
-                    logger.trace("injection completed")
                 }
             }
         }

@@ -22,8 +22,10 @@
  **/
 package com.thitu.spock.injected
 
+import com.google.common.annotations.Beta
 import org.spockframework.runtime.SpockExecutionException
 
+@Beta
 class InjectedWithMocksException extends SpockExecutionException {
     InjectedWithMocksException(String msg) {
         super(msg)
