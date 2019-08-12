@@ -1,6 +1,6 @@
 /*
  * MIT License
- * Copyright (c) 2018 Nikolas Mangu-Thitu
+ * Copyright (c) 2018,2019 Nikolas Mangu-Thitu
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,65 +36,91 @@ import static java.lang.reflect.Modifier.isStatic
 @Slf4j(value = "logger")
 class InjectedWithMocksSpecification extends Specification {
 
-    def inject() {
-        this.class.declaredFields.each { declaredField ->
-            def annotations = declaredField.declaredAnnotations
+  def inject() {
+    this.class.declaredFields.each { declaredField ->
+      def annotations = declaredField.declaredAnnotations
 
-            def injected = annotations.any { it instanceof InjectedWithMocks }
-            def notShared = annotations.every { !(it instanceof Shared) }
+      def injected = annotations.any { it instanceof InjectedWithMocks }
+      def notShared = annotations.every { !(it instanceof Shared) }
 
-            int depth = annotations.find { it instanceof InjectedWithMocks }?.depth() ?: 2
+      Class genericType = declaredField.declaredAnnotations.find {
+        it instanceof InjectedWithMocks
+      }?.genericType() ?: null
 
-            if (injected && !notShared) {
-                throw new InjectedWithMocksException("@${InjectedWithMocks} cannot be used alongside @${Shared}")
-            } else if (depth < 1 || depth > 5) {
-                throw new InjectedWithMocksException("Are we sure about the configured depth of ${depth}? Expected range is 1...5")
-            }
+      Class<?>[] doNotMockTypes = declaredField.declaredAnnotations.find {
+        it instanceof InjectedWithMocks
+      }?.doNotMockTypes() ?: []
 
-            if (injected && notShared) {
-                declaredField.accessible = true
+      int depth = annotations.find { it instanceof InjectedWithMocks }?.depth() ?: 2
 
-                def fields = [] as Set<Field>
-                fields.addAll declaredField.type.declaredFields
+      if (injected && !notShared) {
+        throw new InjectedWithMocksException("@${InjectedWithMocks} cannot be used alongside @${Shared}")
+      }
+      else if (depth < 1 || depth > 5) {
+        throw new InjectedWithMocksException("Are we sure about the configured depth of ${depth}? Expected range is 1...5")
+      }
 
-                if (depth == 5) {
-                    fields.addAll extractFields(declaredField.type?.superclass?.superclass?.superclass?.superclass)
-                    fields.addAll extractFields(declaredField.type?.superclass?.superclass?.superclass)
-                    fields.addAll extractFields(declaredField.type?.superclass?.superclass)
-                    fields.addAll extractFields(declaredField.type?.superclass)
-                } else if (depth == 4) {
-                    fields.addAll extractFields(declaredField.type?.superclass?.superclass?.superclass)
-                    fields.addAll extractFields(declaredField.type?.superclass?.superclass)
-                    fields.addAll extractFields(declaredField.type?.superclass)
-                } else if (depth == 3) {
-                    fields.addAll extractFields(declaredField.type?.superclass?.superclass)
-                    fields.addAll extractFields(declaredField.type?.superclass)
-                } else if (depth == 2) {
-                    fields.addAll extractFields(declaredField.type?.superclass)
-                }
+      if (injected && notShared) {
+        declaredField.accessible = true
 
-                fields.each { field ->
-                    if (!field.type.primitive) {
-                        int modifiers = field.modifiers
+        def fields = [] as Set<Field>
+        fields.addAll declaredField.type.declaredFields
 
-                        if (isFinal(modifiers) || isStatic(modifiers)) {
-                            logger.debug "Not Mocking static or final field: {} -> {}", field.name, field.type
-                        } else {
-                            field.accessible = true
-
-                            if (field.type == String) {
-                                field.set declaredField.get(this), field.name
-                            } else if (!isFinal(field.type.modifiers)) {
-                                field.set declaredField.get(this), Mock(field.type)
-                            }
-                        }
-                    }
-                }
-            }
+        if (depth == 5) {
+          fields.addAll extractFields(declaredField.type?.superclass?.superclass?.superclass?.superclass)
+          fields.addAll extractFields(declaredField.type?.superclass?.superclass?.superclass)
+          fields.addAll extractFields(declaredField.type?.superclass?.superclass)
+          fields.addAll extractFields(declaredField.type?.superclass)
         }
-    }
+        else if (depth == 4) {
+          fields.addAll extractFields(declaredField.type?.superclass?.superclass?.superclass)
+          fields.addAll extractFields(declaredField.type?.superclass?.superclass)
+          fields.addAll extractFields(declaredField.type?.superclass)
+        }
+        else if (depth == 3) {
+          fields.addAll extractFields(declaredField.type?.superclass?.superclass)
+          fields.addAll extractFields(declaredField.type?.superclass)
+        }
+        else if (depth == 2) {
+          fields.addAll extractFields(declaredField.type?.superclass)
+        }
 
-    private def extractFields = { clazz ->
-        clazz?.declaredFields ?: []
+        fields.each { field ->
+          if (!field.type.primitive) {
+            int modifiers = field.modifiers
+
+            if (doNotMockTypes.contains(field.type)) {
+              logger.debug("Not mocking {} per configuration", field.type)
+            }
+            else if (field.genericType.typeName.length() == 1) {
+              if (genericType) {
+                field.accessible = true
+                  field.set field.get(this), Mock(genericType)
+              }
+              else {
+                logger.warn("Generic Type {} detected; expecting genericType value on annotation")
+              }
+            }
+            else if (isFinal(modifiers) || isStatic(modifiers)) {
+              logger.debug "Not Mocking static or final field: {} -> {}", field.name, field.type
+            }
+            else {
+              field.accessible = true
+
+              if (field.type == String) {
+                field.set declaredField.get(this), field.name
+              }
+              else if (!isFinal(field.type.modifiers)) {
+                field.set declaredField.get(this), Mock(field.type)
+              }
+            }
+          }
+        }
+      }
     }
+  }
+
+  private def extractFields = { clazz ->
+    clazz?.declaredFields ?: []
+  }
 }

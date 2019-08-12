@@ -1,6 +1,6 @@
 /*
  * MIT License
- * Copyright (c) 2018 Nikolas Mangu-Thitu
+ * Copyright (c) 2018,2019 Nikolas Mangu-Thitu
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,5 +33,9 @@ import java.lang.annotation.*
 @Retention(RetentionPolicy.RUNTIME)
 @ExtensionAnnotation(value = InjectedWithMocksExtension)
 @interface InjectedWithMocks {
-    int depth() default 2
+  int depth() default 2
+
+  Class<?> genericType() default {}
+
+  Class<?>[] doNotMockTypes() default []
 }

@@ -1,6 +1,6 @@
 /*
  * MIT License
- * Copyright (c) 2018 Nikolas Mangu-Thitu
+ * Copyright (c) 2018,2019 Nikolas Mangu-Thitu
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,34 +34,35 @@ import org.spockframework.runtime.model.SpecInfo
 @Slf4j(value = "logger")
 class InjectedWithMocksExtension extends AbstractAnnotationDrivenExtension<InjectedWithMocks> {
 
+  @Override
+  void visitFieldAnnotation(InjectedWithMocks annotation, FieldInfo fieldInfo) {
+    logger.trace("@visitFieldAnnotation(InjectedWithMocks, FieldInfo)")
+  }
+
+  @Override
+  void visitSpec(SpecInfo specInfo) {
+    logger.trace("@visitSpec(SpecInfo)")
+
+    specInfo.features.each { feature ->
+      feature.featureMethod.addInterceptor(new InjectionInterceptor())
+    }
+  }
+
+  private static class InjectionInterceptor implements IMethodInterceptor {
+
+    def method
+
     @Override
-    void visitFieldAnnotation(InjectedWithMocks annotation, FieldInfo fieldInfo) {
-        logger.trace "@visitFieldAnnotation(InjectedWithMocks, FieldInfo)"
+    void intercept(IMethodInvocation invocation) throws Throwable {
+      logger.trace("stepping into intercept")
+
+      method = invocation.spec.reflection.getMethod("inject", null)
+      method.accessible = true
+      method.invoke(invocation.instance, null)
+
+      invocation.proceed()
+
+      logger.trace("intercept completed!")
     }
-
-    @Override
-    void visitSpec(SpecInfo specInfo) {
-        logger.trace "@visitSpec(SpecInfo)"
-
-        specInfo.features.each { feature ->
-            feature.featureMethod.addInterceptor new InjectionInterceptor()
-        }
-    }
-
-    @Slf4j(value = "logger")
-    private static class InjectionInterceptor implements IMethodInterceptor {
-
-        @Override
-        void intercept(IMethodInvocation invocation) throws Throwable {
-            logger.trace "@intercept(IMethodInvocation)"
-
-            def method = invocation.spec.reflection.getMethod("inject", null)
-            method.accessible = true
-            method.invoke invocation.instance, null
-
-            invocation.proceed()
-
-            logger.trace "intercept completed!"
-        }
-    }
+  }
 }
